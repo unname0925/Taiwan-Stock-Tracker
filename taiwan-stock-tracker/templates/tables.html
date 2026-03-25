@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}歷史資料表 | 台股追蹤器{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">歷史資料表</h1>
+    <p class="page-subtitle">最近 {{ dates|length }} 個交易日（欄位由新到舊）</p>
+  </div>
+  <div class="tab-switcher">
+    <button class="tab-btn active" onclick="showTable('high')">最高價</button>
+    <button class="tab-btn"        onclick="showTable('low')">最低價</button>
+    <button class="tab-btn"        onclick="showTable('close')">收盤價</button>
+  </div>
+</div>
+
+<div id="table-high" class="data-table-wrap">
+  <h2 class="table-title">最高價 (TWD)</h2>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="sticky-col">股票</th>
+          {% for d in dates %}<th>{{ d[5:] }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in high_rows %}
+        <tr>
+          <td class="sticky-col stock-cell">
+            <span class="tc-name">{{ row.name }}</span>
+            <span class="tc-symbol">{{ row.symbol }}</span>
+          </td>
+          {% for v in row.prices %}
+          <td class="price-cell {% if v is none %}empty-cell{% endif %}">
+            {% if v is not none %}{{ "%.2f" % v }}{% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="table-low" class="data-table-wrap hidden">
+  <h2 class="table-title">最低價 (TWD)</h2>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="sticky-col">股票</th>
+          {% for d in dates %}<th>{{ d[5:] }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in low_rows %}
+        <tr>
+          <td class="sticky-col stock-cell">
+            <span class="tc-name">{{ row.name }}</span>
+            <span class="tc-symbol">{{ row.symbol }}</span>
+          </td>
+          {% for v in row.prices %}
+          <td class="price-cell {% if v is none %}empty-cell{% endif %}">
+            {% if v is not none %}{{ "%.2f" % v }}{% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="table-close" class="data-table-wrap hidden">
+  <h2 class="table-title">收盤價 (TWD)</h2>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="sticky-col">股票</th>
+          {% for d in dates %}<th>{{ d[5:] }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in close_rows %}
+        <tr>
+          <td class="sticky-col stock-cell">
+            <span class="tc-name">{{ row.name }}</span>
+            <span class="tc-symbol">{{ row.symbol }}</span>
+          </td>
+          {% for v in row.prices %}
+          <td class="price-cell {% if v is none %}empty-cell{% endif %}">
+            {% if v is not none %}{{ "%.2f" % v }}{% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTable(id) {
+  document.querySelectorAll('.data-table-wrap').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('table-' + id).classList.remove('hidden');
+  event.target.classList.add('active');
+}
+</script>
+{% endblock %}

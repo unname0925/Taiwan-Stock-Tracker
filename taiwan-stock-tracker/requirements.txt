@@ -1,0 +1,4 @@
+flask>=3.0
+yfinance>=0.2.38
+apscheduler>=3.10
+pytz>=2024.1

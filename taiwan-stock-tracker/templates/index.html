@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}今日行情 | 台股追蹤器{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">今日行情</h1>
+    <p class="page-subtitle"> 台灣今日：{{ today }}</p>
+  </div>
+  <button class="btn btn-primary" id="refreshBtn" onclick="refreshData()">
+    <span class="btn-icon">⟳</span> 重新抓取資料
+  </button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div class="summary-bar">
+  {% set filled = dashboard | selectattr("close") | list %}
+  <div class="summary-card">
+    <span class="sc-label">追蹤股票數</span>
+    <span class="sc-value">{{ dashboard | length }}</span>
+  </div>
+  <div class="summary-card">
+    <span class="sc-label">有資料</span>
+    <span class="sc-value">{{ filled | length }}</span>
+  </div>
+  <div class="summary-card">
+    <span class="sc-label">缺少資料</span>
+    <span class="sc-value warn">{{ dashboard | length - filled | length }}</span>
+  </div>
+</div>
+
+<div class="stock-grid" id="stockGrid">
+  {% for s in dashboard %}
+  <div class="stock-card {% if not s.close %}stock-card--empty{% endif %}">
+    <div class="sc-header">
+      <div>
+        <div class="sc-name">{{ s.name }}</div>
+        <div class="sc-symbol">{{ s.symbol }}</div>
+      </div>
+      {% if s.close %}
+        {% set change_class = "neutral" %}
+        <div class="sc-close">{{ "%.2f"|format(s.close) }}</div>
+      {% else %}
+        <div class="sc-close no-data">—</div>
+      {% endif %}
+    </div>
+
+    {% if s.high and s.low %}
+    <div class="sc-hl">
+      <div class="hl-item hl-high">
+        <span class="hl-label">最高</span>
+        <span class="hl-value">{{ "%.2f"|format(s.high) }}</span>
+      </div>
+      <div class="hl-bar-wrap">
+        {% set range = s.high - s.low %}
+        {% set close_pct = ((s.close - s.low) / range * 100) if range > 0 else 50 %}
+        <div class="hl-bar">
+          <div class="hl-bar-fill" style="width: {{ close_pct | round | int }}%"></div>
+          <div class="hl-bar-dot" style="left: {{ close_pct | round | int }}%"></div>
+        </div>
+      </div>
+      <div class="hl-item hl-low">
+        <span class="hl-label">最低</span>
+        <span class="hl-value">{{ "%.2f"|format(s.low) }}</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="sc-no-data">尚無資料</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

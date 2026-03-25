@@ -1,0 +1,28 @@
+{
+  "stocks": [
+    {
+      "symbol": "2330.TW",
+      "name": "台積電"
+    },
+    {
+      "symbol": "2317.TW",
+      "name": "鴻海"
+    },
+    {
+      "symbol": "2454.TW",
+      "name": "聯發科"
+    },
+    {
+      "symbol": "2881.TW",
+      "name": "富邦金"
+    },
+    {
+      "symbol": "2882.TW",
+      "name": "國泰金"
+    },
+    {
+      "symbol": "2308.TW",
+      "name": "台達電"
+    }
+  ]
+}

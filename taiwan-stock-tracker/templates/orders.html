@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}委託單 | 台股追蹤器{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">委託單</h1>
+    <p class="page-subtitle">管理預計買入的股票，設定目標價與張數</p>
+  </div>
+  <div class="order-legend">
+    <span class="badge badge-pending">待執行</span>
+    <span class="badge badge-executed">已執行</span>
+    <span class="badge badge-cancelled">已取消</span>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div class="orders-layout">
+
+  <div class="order-form-card">
+    <h2 class="form-card-title">➕ 新增委託單</h2>
+
+    <div class="form-group">
+      <label class="form-label">股票代號 <span class="hint">（例如：2330）</span></label>
+      <div class="symbol-input-wrap">
+        <input class="form-input" id="oSymbol" type="text" placeholder="2330" maxlength="12"
+               oninput="onSymbolInput()" />
+        <div id="symbolDropdown" class="symbol-dropdown hidden"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">股票名稱</label>
+      <input class="form-input" id="oName" type="text" placeholder="台積電（選填）" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">目標價 (TWD)</label>
+        <input class="form-input" id="oPrice" type="number" min="0.01" step="0.01"
+               placeholder="1000.00" oninput="calcTotal()" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">張數 <span class="hint">（1張 = 1,000股）</span></label>
+        <input class="form-input" id="oLots" type="number" min="1" step="1"
+               value="1" oninput="calcTotal()" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">備註 <span class="hint">（選填）</span></label>
+      <input class="form-input" id="oNote" type="text" placeholder="例如：等季報後再買" />
+    </div>
+
+    <div class="total-preview" id="totalPreview">
+      <div class="tp-row">
+        <span class="tp-label">股數</span>
+        <span class="tp-value" id="previewShares">—</span>
+      </div>
+      <div class="tp-row">
+        <span class="tp-label">預估總價</span>
+        <span class="tp-value tp-total" id="previewTotal">—</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" onclick="addOrder()">新增委託單</button>
+  </div>
+
+  <div class="orders-list-section">
+
+    <div class="orders-summary" id="ordersSummary">
+      <div class="os-card">
+        <span class="os-label">委託單總數</span>
+        <span class="os-value" id="sumTotal">0</span>
+      </div>
+      <div class="os-card">
+        <span class="os-label">待執行</span>
+        <span class="os-value accent" id="sumPending">0</span>
+      </div>
+      <div class="os-card">
+        <span class="os-label">預估總金額</span>
+        <span class="os-value" id="sumAmount">—</span>
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filterOrders('all',    this)">全部</button>
+      <button class="filter-tab"        onclick="filterOrders('pending', this)">待執行</button>
+      <button class="filter-tab"        onclick="filterOrders('executed',  this)">已執行</button>
+      <button class="filter-tab"        onclick="filterOrders('cancelled', this)">已取消</button>
+    </div>
+
+    <div class="orders-table-wrap">
+      <table class="orders-table" id="ordersTable">
+        <thead>
+          <tr>
+            <th>股票</th>
+            <th>目標價</th>
+            <th>張數</th>
+            <th>股數</th>
+            <th>預估總價</th>
+            <th>現價</th>
+            <th>狀態</th>
+            <th>備註</th>
+            <th>建立時間</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody">
+          {% if orders %}
+            {% for o in orders %}
+            <tr class="order-row" data-id="{{ o.id }}" data-status="{{ o.status }}">
+              <td class="cell-stock">
+                <span class="os-name">{{ o.name }}</span>
+                <span class="os-symbol">{{ o.symbol }}</span>
+              </td>
+              <td class="cell-mono">{{ "%.2f" % o.target_price }}</td>
+              <td class="cell-mono">{{ o.lots }}</td>
+              <td class="cell-mono">{{ "{:,}".format(o.shares) }}</td>
+              <td class="cell-mono cell-total">{{ "{:,.0f}".format(o.total) }}</td>
+              <td class="cell-mono cell-current">
+                {% if o.current_price %}
+                  <span class="{% if o.current_price <= o.target_price %}price-ok{% else %}price-high{% endif %}">
+                    {{ "%.2f" % o.current_price }}
+                  </span>
+                {% else %}—{% endif %}
+              </td>
+              <td><span class="badge badge-{{ o.status }}">
+                {{ "待執行" if o.status == "pending" else ("已執行" if o.status == "executed" else "已取消") }}
+              </span></td>
+              <td class="cell-note">{{ o.note or "—" }}</td>
+              <td class="cell-date">{{ o.created_at }}</td>
+              <td class="cell-actions">
+                {% if o.status == "pending" %}
+                <button class="act-btn act-execute" title="標記為已執行"
+                        onclick="setStatus('{{ o.id }}', 'executed')">✓</button>
+                <button class="act-btn act-cancel"  title="取消委託"
+                        onclick="setStatus('{{ o.id }}', 'cancelled')">✕</button>
+                {% endif %}
+                <button class="act-btn act-delete"  title="刪除"
+                        onclick="deleteOrder('{{ o.id }}')">🗑</button>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr id="emptyRow">
+              <td colspan="10" class="empty-orders">尚無委託單，請從左側新增</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+const trackedStocks = {{ tracked_stocks | tojson }};
+
+function onSymbolInput() {
+  const q   = document.getElementById('oSymbol').value.trim().toUpperCase();
+  const dd  = document.getElementById('symbolDropdown');
+  if (!q) { dd.classList.add('hidden'); return; }
+
+  const matches = trackedStocks.filter(s =>
+    s.symbol.includes(q) || s.name.includes(q)
+  ).slice(0, 6);
+
+  if (!matches.length) { dd.classList.add('hidden'); return; }
+
+  dd.innerHTML = matches.map(s => `
+    <div class="dd-item" onclick="selectSymbol('${s.symbol}','${s.name}')">
+      <span class="dd-name">${s.name}</span>
+      <span class="dd-symbol">${s.symbol}</span>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function selectSymbol(symbol, name) {
+  document.getElementById('oSymbol').value = symbol.replace('.TW','').replace('.TWO','');
+  document.getElementById('oName').value   = name;
+  document.getElementById('symbolDropdown').classList.add('hidden');
+  calcTotal();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.symbol-input-wrap'))
+    document.getElementById('symbolDropdown').classList.add('hidden');
+});
+
+
+function calcTotal() {
+  const price = parseFloat(document.getElementById('oPrice').value) || 0;
+  const lots  = parseInt(document.getElementById('oLots').value)    || 0;
+  const shares = lots * 1000;
+  const total  = price * shares;
+
+  document.getElementById('previewShares').textContent =
+    shares > 0 ? shares.toLocaleString() + ' 股' : '—';
+  document.getElementById('previewTotal').textContent =
+    total > 0 ? 'NT$ ' + total.toLocaleString('zh-TW', {minimumFractionDigits:0, maximumFractionDigits:0}) : '—';
+}
+
+
+async function addOrder() {
+  const symbol = document.getElementById('oSymbol').value.trim();
+  const name   = document.getElementById('oName').value.trim();
+  const price  = document.getElementById('oPrice').value.trim();
+  const lots   = document.getElementById('oLots').value.trim();
+  const note   = document.getElementById('oNote').value.trim();
+
+  if (!symbol) { showToast('請輸入股票代號', 'error'); return; }
+  if (!price || parseFloat(price) <= 0) { showToast('請輸入有效目標價', 'error'); return; }
+  if (!lots  || parseInt(lots)    <= 0) { showToast('張數必須大於 0', 'error'); return; }
+
+  const res  = await fetch('/api/orders', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({symbol, name, target_price: price, lots, note})
+  });
+  const data = await res.json();
+
+  if (res.ok) {
+    showToast(`✓ 委託單已新增 ${data.order.symbol}`, 'success');
+    ['oSymbol','oName','oPrice','oNote'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('oLots').value = '1';
+    calcTotal();
+    appendOrderRow(data.order);
+    updateSummary();
+  } else {
+    showToast(data.error || '新增失敗', 'error');
+  }
+}
+
+async function setStatus(id, status) {
+  const res  = await fetch(`/api/orders/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  });
+  if (res.ok) {
+    const label = status === 'executed' ? '已執行' : '已取消';
+    showToast(`狀態已更新為「${label}」`, 'success');
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) {
+      row.dataset.status = status;
+      row.querySelector('.badge').className = `badge badge-${status}`;
+      row.querySelector('.badge').textContent = label;
+      row.querySelector('.cell-actions').innerHTML =
+        `<button class="act-btn act-delete" title="刪除" onclick="deleteOrder('${id}')">🗑</button>`;
+      applyCurrentFilter();
+    }
+    updateSummary();
+  } else {
+    showToast('更新失敗', 'error');
+  }
+}
+
+async function deleteOrder(id) {
+  if (!confirm('確定刪除此委託單？')) return;
+  const res = await fetch(`/api/orders/${id}`, {method: 'DELETE'});
+  if (res.ok) {
+    document.querySelector(`tr[data-id="${id}"]`)?.remove();
+    showToast('已刪除', 'success');
+    if (!document.querySelectorAll('.order-row').length) {
+      const tbody = document.getElementById('ordersBody');
+      tbody.innerHTML = '<tr id="emptyRow"><td colspan="10" class="empty-orders">尚無委託單，請從左側新增</td></tr>';
+    }
+    updateSummary();
+  } else {
+    showToast('刪除失敗', 'error');
+  }
+}
+
+let currentFilter = 'all';
+function filterOrders(status, btn) {
+  currentFilter = status;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyCurrentFilter();
+}
+function applyCurrentFilter() {
+  document.querySelectorAll('.order-row').forEach(row => {
+    row.style.display =
+      (currentFilter === 'all' || row.dataset.status === currentFilter) ? '' : 'none';
+  });
+}
+
+function appendOrderRow(o) {
+  document.getElementById('emptyRow')?.remove();
+  const tbody = document.getElementById('ordersBody');
+  const tr = document.createElement('tr');
+  tr.className    = 'order-row';
+  tr.dataset.id   = o.id;
+  tr.dataset.status = o.status;
+  tr.innerHTML = `
+    <td class="cell-stock">
+      <span class="os-name">${o.name}</span>
+      <span class="os-symbol">${o.symbol}</span>
+    </td>
+    <td class="cell-mono">${o.target_price.toFixed(2)}</td>
+    <td class="cell-mono">${o.lots}</td>
+    <td class="cell-mono">${o.shares.toLocaleString()}</td>
+    <td class="cell-mono cell-total">${o.total.toLocaleString('zh-TW',{maximumFractionDigits:0})}</td>
+    <td class="cell-mono cell-current">—</td>
+    <td><span class="badge badge-pending">待執行</span></td>
+    <td class="cell-note">${o.note || '—'}</td>
+    <td class="cell-date">${o.created_at}</td>
+    <td class="cell-actions">
+      <button class="act-btn act-execute" title="標記為已執行" onclick="setStatus('${o.id}','executed')">✓</button>
+      <button class="act-btn act-cancel"  title="取消委託"    onclick="setStatus('${o.id}','cancelled')">✕</button>
+      <button class="act-btn act-delete"  title="刪除"        onclick="deleteOrder('${o.id}')">🗑</button>
+    </td>`;
+  tbody.appendChild(tr);
+  applyCurrentFilter();
+}
+
+function updateSummary() {
+  const rows    = [...document.querySelectorAll('.order-row')];
+  const pending = rows.filter(r => r.dataset.status === 'pending');
+  let amount    = 0;
+  pending.forEach(r => {
+    const totalCell = r.querySelector('.cell-total');
+    if (totalCell) amount += parseFloat(totalCell.textContent.replace(/,/g,'')) || 0;
+  });
+  document.getElementById('sumTotal').textContent   = rows.length;
+  document.getElementById('sumPending').textContent = pending.length;
+  document.getElementById('sumAmount').textContent  =
+    amount > 0 ? 'NT$ ' + amount.toLocaleString('zh-TW',{maximumFractionDigits:0}) : '—';
+}
+
+// Init
+calcTotal();
+updateSummary();
+</script>
+{% endblock %}

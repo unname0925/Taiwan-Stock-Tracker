@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}管理股票 | 台股追蹤器{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">管理股票</h1>
+    <p class="page-subtitle">新增或移除追蹤清單中的股票</p>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div class="manage-layout">
+  <div class="manage-card">
+    <h2 class="manage-card-title">➕ 新增股票</h2>
+    <div class="form-group">
+      <label class="form-label">股票代號 <span class="hint">（例如：2330 或 2330.TW）</span></label>
+      <input class="form-input" id="newSymbol" type="text" placeholder="2330" maxlength="12"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">股票名稱 <span class="hint">（選填）</span></label>
+      <input class="form-input" id="newName" type="text" placeholder="台積電"/>
+    </div>
+    <button class="btn btn-primary" onclick="addStock()">新增</button>
+
+    <div class="hint-box">
+      <strong>台股格式：</strong>輸入代號即可，系統會自動加上 <code>.TW</code><br>
+      例如輸入 <code>2330</code> → 儲存為 <code>2330.TW</code>
+    </div>
+  </div>
+
+  <div class="manage-card">
+    <h2 class="manage-card-title">📋 目前追蹤清單（{{ stocks|length }} 支）</h2>
+    <ul class="stock-list" id="stockList">
+      {% for s in stocks %}
+      <li class="stock-list-item" id="row-{{ s.symbol | replace('.', '_') }}">
+        <div class="sli-info">
+          <span class="sli-name">{{ s.name }}</span>
+          <span class="sli-symbol">{{ s.symbol }}</span>
+        </div>
+        <button class="btn-delete" onclick="deleteStock('{{ s.symbol }}', this)">✕</button>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addStock() {
+  const symbol = document.getElementById('newSymbol').value.trim();
+  const name   = document.getElementById('newName').value.trim();
+  if (!symbol) { showToast('請輸入股票代號', 'error'); return; }
+
+  const res = await fetch('/api/stocks', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({symbol, name})
+  });
+  const data = await res.json();
+
+  if (res.ok) {
+    showToast(`✓ 已新增 ${data.symbol}`, 'success');
+    document.getElementById('newSymbol').value = '';
+    document.getElementById('newName').value   = '';
+    const li = document.createElement('li');
+    li.className = 'stock-list-item';
+    li.id = 'row-' + data.symbol.replace('.', '_');
+    li.innerHTML = `
+      <div class="sli-info">
+        <span class="sli-name">${name || data.symbol}</span>
+        <span class="sli-symbol">${data.symbol}</span>
+      </div>
+      <button class="btn-delete" onclick="deleteStock('${data.symbol}', this)">✕</button>`;
+    document.getElementById('stockList').appendChild(li);
+  } else {
+    showToast(data.error || '新增失敗', 'error');
+  }
+}
+
+async function deleteStock(symbol, btn) {
+  if (!confirm(`確定要移除 ${symbol}？`)) return;
+  const res = await fetch('/api/stocks/' + encodeURIComponent(symbol), {method: 'DELETE'});
+  if (res.ok) {
+    const rowId = 'row-' + symbol.replace('.', '_');
+    document.getElementById(rowId)?.remove();
+    showToast(`已移除 ${symbol}`, 'success');
+  } else {
+    showToast('移除失敗', 'error');
+  }
+}
+</script>
+{% endblock %}

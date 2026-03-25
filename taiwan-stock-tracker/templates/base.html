@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}台股追蹤器{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">📈</span>
+        <span class="brand-name">台股追蹤器</span>
+      </div>
+      <nav class="nav">
+        <a href="/"       class="nav-link {% if request.path == '/' %}active{% endif %}">今日行情</a>
+        <a href="/tables" class="nav-link {% if request.path == '/tables' %}active{% endif %}">歷史資料表</a>
+        <a href="/orders" class="nav-link {% if request.path == '/orders' %}active{% endif %}">委託單</a>
+        <a href="/manage" class="nav-link {% if request.path == '/manage' %}active{% endif %}">管理股票</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>資料來源：Yahoo Finance &nbsp;|&nbsp; 台灣時區 (UTC+8) &nbsp;|&nbsp; 僅供參考，不構成投資建議</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
